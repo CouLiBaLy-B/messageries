@@ -360,3 +360,21 @@ resource "aws_security_group_rule" "nats_from_api" {
   source_security_group_id = module.ecs.task_sg_id
   security_group_id        = module.nats[0].security_group_id
 }
+
+# ============================================================
+# Phase 6 (opt-in) : OpenSearch
+# ============================================================
+module "opensearch" {
+  count  = var.enable_phase6 ? 1 : 0
+  source = "../../modules/opensearch"
+
+  name                       = local.name
+  vpc_id                     = module.vpc.vpc_id
+  subnet_ids                 = module.vpc.data_subnet_ids
+  allowed_security_group_ids = compact([module.ecs.task_sg_id])
+  kms_key_arn                = module.kms.rds_key_arn
+  logs_kms_key_arn           = module.kms.logs_key_arn
+  instance_type              = "t3.small.search"
+  instance_count             = 2
+  tags                       = local.tags
+}

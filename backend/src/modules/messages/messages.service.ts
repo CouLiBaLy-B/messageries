@@ -96,6 +96,11 @@ export class MessagesService {
         .where('c.id = :id', { id: input.conversationId })
         .getOne();
       if (!conv) throw new NotFoundException('Conversation introuvable');
+      if ((conv as any).e2eeEnabled) {
+        throw new ForbiddenException(
+          'Conversation E2EE : utiliser /e2ee/messages (le serveur ne déchiffre pas)',
+        );
+      }
       await this.conversations.assertCanWrite(conv);
 
       const part = await m.getRepository(ConversationParticipant).findOne({

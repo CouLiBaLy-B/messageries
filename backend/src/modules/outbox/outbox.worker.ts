@@ -14,6 +14,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { PresenceService } from '../presence/presence.service';
 import { MetricsService } from '../observability/metrics.service';
 import { NatsService } from '../nats/nats.service';
+import { SearchService } from '../search/search.service';
 
 /**
  * Outbox worker — Phase 5 :
@@ -36,6 +37,7 @@ export class OutboxWorker implements OnModuleInit, OnModuleDestroy {
     private readonly presence: PresenceService,
     @Optional() private readonly metrics?: MetricsService,
     @Optional() private readonly nats?: NatsService,
+    @Optional() private readonly search?: SearchService,
   ) {}
 
   async onModuleInit() {
@@ -138,6 +140,25 @@ export class OutboxWorker implements OnModuleInit, OnModuleDestroy {
     // 2. Notifications email (best-effort, offline only)
     if (type === 'message.created') {
       await this.onMessageCreated(payload);
+      // 3. Search indexing (opt-in par conversation, no-op sinon)
+      if (this.search) {
+        await this.search
+          .indexMessageIfEnabled({
+            messageId: payload.messageId,
+            conversationId: payload.conversationId,
+            sequence: payload.sequence,
+            senderId: payload.senderId,
+            createdAt: payload.createdAt,
+            content: payload.body ?? '',
+            participants: [
+              payload.senderId,
+              ...(payload.recipients ?? []),
+            ],
+          })
+          .catch((e) =>
+            this.logger.warn(`search indexing failed: ${(e as Error).message}`),
+          );
+      }
     }
   }
 

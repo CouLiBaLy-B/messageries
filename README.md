@@ -2,7 +2,7 @@
 
 Système de messagerie custom sécurisée pour e-commerce, où **chaque conversation est liée à une commande**.
 
-**Stack** : NestJS · PostgreSQL · Redis · S3 · Socket.IO · NATS JetStream · Docker · Terraform AWS · OpenTelemetry · k6.
+**Stack** : NestJS · PostgreSQL · Redis · S3 · Socket.IO · NATS JetStream · OpenSearch · MLS (RFC 9420) · Docker · Terraform AWS · OpenTelemetry · k6.
 
 ---
 
@@ -10,86 +10,69 @@ Système de messagerie custom sécurisée pour e-commerce, où **chaque conversa
 
 | Phase | Apport principal |
 |---|---|
-| **1 — MVP sécurisé** | Auth JWT, anti-IDOR, 1 conv = 1 order, sequence sous lock, idempotency, WS sécurisé, S3 attachments, audit, throttling |
+| **1 — MVP sécurisé** | Auth JWT (Argon2id), anti-IDOR, 1 conv = 1 order, sequence sous lock, idempotency, WS sécurisé, S3 attachments, audit, throttling |
 | **2 — Production code** | Envelope encryption AES-256-GCM, scan PAN/IBAN/CVV, outbox worker, notifs email, présence Redis, modération, refresh tokens rotatifs, RGPD |
-| **3 — Production infra** | Terraform AWS complet (VPC, RDS, ElastiCache, ECS, ALB, WAF, KMS, Secrets) + CloudWatch + GitHub Actions OIDC |
+| **3 — Production infra** | Terraform AWS (VPC 3 AZ, RDS Multi-AZ, ElastiCache TLS, ECS Fargate ARM64, ALB+WAF, KMS) + CloudWatch + GitHub Actions OIDC |
 | **4 — Tests & observabilité** | Testcontainers e2e (7 specs), OpenTelemetry + X-Ray ADOT sidecar, Pino JSON + traceId, k6 load tests |
-| **5 — Scale-out** | **WS Gateway dédié** (process séparé), **NATS JetStream** durable, NLB pour WebSocket, modules Terraform `nats/` + `ws-gateway/` |
+| **5 — Scale-out** | WS Gateway dédié, NATS JetStream durable, NLB pour WebSocket |
+| **6 — Recherche** | **OpenSearch opt-in** par conversation, RBAC enforced, KMS+VPC privé, backfill/cleanup |
+| **7 — Multi-région DR** | RDS cross-region replica, S3 CRR RTC 15min, Route 53 failover, RPO ≤5min / RTO ≤15min |
+| **8 — E2EE optionnel** | Backend MLS (RFC 9420) opt-in : KeyPackages pool, transport opaque Welcome/Commit/Application |
 
-## 📁 Structure (Phase 5)
+## 📁 Structure (à jour)
 
 ```
 messagerie/
-├── backend/                          # API REST
+├── backend/
 │   └── src/modules/
-│       ├── nats/                     # 🆕 client NATS partagé
-│       ├── outbox/                   # publie maintenant sur NATS
-│       └── realtime/                 # désactivé si WS_GATEWAY_DEDICATED=true
+│       ├── auth/, users/, orders/, conversations/, messages/, attachments/,
+│       ├── realtime/, audit/, health/,
+│       ├── crypto/, moderation/, notifications/, presence/, outbox/, privacy/,
+│       ├── observability/, nats/,
+│       ├── search/                 # 🆕 Phase 6 — OpenSearch opt-in + RBAC
+│       └── e2ee/                   # 🆕 Phase 8 — MLS transport (KeyPackages + groups + messages)
 │
-├── ws-gateway/                       # 🆕 service Node dédié
-│   ├── src/
-│   │   ├── server.ts                 # Socket.IO + NATS consumer
-│   │   ├── auth.ts                   # JWT verify (jose, même secret que API)
-│   │   ├── rate-limit.ts             # Redis rate limit par user
-│   │   └── nats-consumer.ts          # JetStream pull subscriber
-│   ├── Dockerfile (ARM64)
-│   └── package.json
+├── ws-gateway/                     # Phase 5
 │
-├── infra/terraform/modules/
-│   ├── nats/                         # 🆕 cluster NATS 3 replicas (ECS+EFS+Cloud Map)
-│   └── ws-gateway/                   # 🆕 ECS service + NLB TLS
+├── infra/terraform/
+│   ├── modules/
+│   │   ├── vpc, kms, secrets, s3, ecr, rds, redis, alb, waf, ecs, iam, observability,
+│   │   ├── nats, ws-gateway,                       # Phase 5
+│   │   ├── opensearch,                              # 🆕 Phase 6
+│   │   ├── dr-rds-replica, dr-s3-replication,      # 🆕 Phase 7
+│   │   └── dr-route53-failover                     # 🆕 Phase 7
+│   └── envs/
+│       ├── staging/   (opt-in enable_phase5/6 via tfvars)
+│       ├── prod/
+│       └── dr/                                     # 🆕 Phase 7
 │
-├── docker-compose.yml                # ajout services nats + ws-gateway
-├── docs/PHASE5.md                    # 🆕
-└── ...
+├── docker-compose.yml
+├── docs/
+│   ├── ARCHITECTURE.md, SECURITY.md, API.md,
+│   ├── PHASE2.md, PHASE3.md, PHASE4.md, PHASE5.md,
+│   ├── PHASE6.md, PHASE7.md, PHASE8.md             # 🆕
+└── .github/workflows/...
 ```
 
-## 🔄 Flux Phase 5
+## 🚀 Démarrage
 
-```
-client ──HTTP──▶ api (ECS)
-                  │
-                  ├─ TX: insert message + insert outbox event
-                  ▼
-            outbox worker
-                  │ publish messaging.events.message.created
-                  ▼
-          NATS JetStream (durable, replicated, dedup Msg-Id)
-                  │
-                  ▼  (consumer durable "ws-gateway")
-           ws-gateway (ECS)
-                  │ fanout → socket.io rooms
-                  ▼
-              clients WebSocket
-```
+- Local : [`QUICKSTART.md`](QUICKSTART.md)
+- Cloud : [`docs/PHASE3.md`](docs/PHASE3.md)
+- Scale-out : [`docs/PHASE5.md`](docs/PHASE5.md)
+- Recherche : [`docs/PHASE6.md`](docs/PHASE6.md)
+- DR : [`docs/PHASE7.md`](docs/PHASE7.md)
+- E2EE : [`docs/PHASE8.md`](docs/PHASE8.md)
 
-## 🚀 Démarrage local (avec Phase 5)
+## 🎚️ Matrice features × confidentialité
 
-```bash
-docker compose up -d postgres redis minio minio-init nats
-cd backend && npm i && npm run migration:run && npm run seed && npm run start:dev &
-cd ../ws-gateway && npm i && npm run start:dev
-# Client : http://localhost:8080 — il pointe désormais vers ws://localhost:3001
-```
+|  | Pas chiffré | Envelope (Phase 2) | E2EE (Phase 8) |
+|---|---|---|---|
+| Recherche serveur | ✅ | ✅ (avec opt-in P6) | ❌ |
+| Modération auto PAN/IBAN | ✅ | ✅ | ❌ |
+| Support lit conv | ✅ | ✅ | ❌ |
+| Compromission DB | 🔴 | 🟢 | 🟢 |
+| Compromission DB+KMS | 🔴 | 🔴 | 🟢 |
+| Admin malveillant lit | 🔴 | 🟠 (via KMS) | 🟢 |
+| Subpoena force déchiffrement | 🔴 | 🔴 | 🟢 |
 
-> Côté frontend démo, change `WS_BASE = 'http://localhost:3001'`.
-
-## 🚀 Déploiement AWS Phase 5
-
-```bash
-cd infra/terraform/envs/staging
-terraform apply -var='enable_phase5=true'
-# → crée: cluster NATS (3 replicas EFS), ECR ws-gateway, NLB+TG, ECS service ws-gateway
-# → l'API reçoit NATS_ENABLED=true + WS_GATEWAY_DEDICATED=true
-```
-
-Côté DNS : pointer `api.example.com` → ALB, `ws.example.com` → NLB.
-
-Voir [`docs/PHASE5.md`](docs/PHASE5.md) pour les détails, garanties, et quand Phase 5 vaut le coup.
-
-## 🗺️ Phases ultérieures possibles
-
-- **Phase 6** : Recherche OpenSearch (chiffrement préservé via indexation contrôlée)
-- **Phase 7** : Multi-région DR (RDS cross-region, S3 CRR, Route 53 failover)
-- **Phase 8** : E2EE optionnel (MLS RFC 9420) pour conversations sensibles
-- **Phase 9** : Frontend React production + Playwright
+Par défaut : **Envelope (Phase 2) activé partout**, **E2EE opt-in** pour conversations sensibles.

@@ -42,6 +42,20 @@ export class Conversation {
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt!: Date;
 
+
+  @Column({ name: 'search_indexed', type: 'boolean', default: false })
+  searchIndexed!: boolean;
+
+  @Column({ name: 'search_indexed_at', type: 'timestamptz', nullable: true })
+  searchIndexedAt?: Date | null;
+
+
+  @Column({ name: 'e2ee_enabled', type: 'boolean', default: false })
+  e2eeEnabled!: boolean;
+
+  @Column({ name: 'e2ee_enabled_at', type: 'timestamptz', nullable: true })
+  e2eeEnabledAt?: Date | null;
+
   @OneToMany(() => ConversationParticipant, (p) => p.conversation)
   participants?: ConversationParticipant[];
 }

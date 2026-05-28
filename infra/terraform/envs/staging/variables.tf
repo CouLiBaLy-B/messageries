@@ -43,3 +43,8 @@ variable "ws_image_tag" {
   type    = string
   default = "latest"
 }
+
+variable "enable_phase6" {
+  type    = bool
+  default = false
+}

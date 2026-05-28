@@ -76,6 +76,14 @@ export const envValidationSchema = Joi.object({
   NATS_REPLICAS: Joi.number().default(1),
   // --- Phase 5 : WS gateway dédié ---
   WS_GATEWAY_DEDICATED: Joi.boolean().default(false),
+  // --- Phase 6 : Search OpenSearch ---
+  SEARCH_ENABLED: Joi.boolean().default(false),
+  OPENSEARCH_ENDPOINT: Joi.string().uri().optional(),
+  OPENSEARCH_INDEX: Joi.string().default('messaging_messages'),
+  OPENSEARCH_USERNAME: Joi.string().default('admin'),
+  OPENSEARCH_PASSWORD: Joi.string().allow('').optional(),
+  OPENSEARCH_VERIFY_TLS: Joi.boolean().default(true),
+
 
 
 });

@@ -14,10 +14,17 @@ import { AuditLog } from '../modules/audit/entities/audit-log.entity';
 import { MessageReport } from '../modules/moderation/entities/message-report.entity';
 import { RefreshToken } from '../modules/auth/entities/refresh-token.entity';
 import { EmailNotification } from '../modules/notifications/entities/email-notification.entity';
+import { MlsKeyPackage } from '../modules/e2ee/entities/mls-key-package.entity';
+import { MlsGroup } from '../modules/e2ee/entities/mls-group.entity';
+import { MlsMessage } from '../modules/e2ee/entities/mls-message.entity';
+
 
 const entities = [
   User, Order, Conversation, ConversationParticipant, Message, MessageReceipt,
   Attachment, OutboxEvent, AuditLog, MessageReport, RefreshToken, EmailNotification,
+  MlsKeyPackage,
+  MlsGroup,
+  MlsMessage,
 ];
 
 export const typeOrmConfig = (): TypeOrmModuleOptions => ({

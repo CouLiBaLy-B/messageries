@@ -24,6 +24,8 @@ import { OutboxModule } from './modules/outbox/outbox.module';
 import { PrivacyModule } from './modules/privacy/privacy.module';
 import { ObservabilityModule } from './modules/observability/observability.module';
 import { NatsModule } from './modules/nats/nats.module';
+import { SearchModule } from './modules/search/search.module';
+import { E2eeModule } from './modules/e2ee/e2ee.module';
 
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
 
@@ -41,6 +43,8 @@ import { RequestContextMiddleware } from './common/middleware/request-context.mi
     ]),
     ObservabilityModule,
     NatsModule,
+    SearchModule,
+    E2eeModule,
     AuthModule,
     UsersModule,
     OrdersModule,
