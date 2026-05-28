@@ -1,0 +1,48 @@
+name: Load Test (manual)
+
+# Lance un load test k6 manuellement contre un environnement.
+# ⚠️ S'assurer que le WAF autorise les IPs des runners GitHub (ou allowlist temporaire).
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'URL de base API (ex: https://staging.api.example.com)'
+        required: true
+      vus:
+        description: 'VUs concurrents'
+        required: false
+        default: '50'
+      duration:
+        description: 'Durée'
+        required: false
+        default: '1m'
+      scenario:
+        description: 'Scénario k6'
+        type: choice
+        required: true
+        default: 'http-baseline'
+        options:
+          - http-baseline
+          - messages-burst
+          - ws-fanout
+
+jobs:
+  k6:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: grafana/setup-k6-action@v1
+      - name: Run scenario
+        run: |
+          k6 run \
+            -e BASE_URL=${{ inputs.base_url }} \
+            -e VUS=${{ inputs.vus }} \
+            -e DURATION=${{ inputs.duration }} \
+            --summary-export=summary.json \
+            loadtest/k6/${{ inputs.scenario }}.js
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k6-summary
+          path: summary.json
