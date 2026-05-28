@@ -21,3 +21,13 @@ output "redis_endpoint" {
 output "github_deploy_role_arn" {
   value = module.iam.github_deploy_role_arn
 }
+
+output "nats_url" {
+  value     = var.enable_phase5 ? module.nats[0].url : null
+}
+output "ws_nlb_dns_name" {
+  value     = var.enable_phase5 ? module.ws_gateway[0].nlb_dns_name : null
+}
+output "ws_ecr_repository_url" {
+  value     = var.enable_phase5 ? aws_ecr_repository.ws_gateway[0].repository_url : null
+}

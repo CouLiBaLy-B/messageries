@@ -60,6 +60,27 @@ services:
         mc anonymous set none local/messaging-attachments
       "
 
+  # --- Phase 5 : NATS JetStream ---
+  nats:
+    image: nats:2.10-alpine
+    restart: unless-stopped
+    command:
+      - "-js"
+      - "-sd"
+      - "/data"
+      - "-m"
+      - "8222"
+    ports:
+      - "4222:4222"   # client
+      - "8222:8222"   # monitoring HTTP
+    volumes:
+      - natsdata:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   clamav:
     image: clamav/clamav:stable
     restart: unless-stopped
@@ -69,12 +90,10 @@ services:
   backend:
     build: ./backend
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
+      postgres: { condition: service_healthy }
+      redis:    { condition: service_healthy }
+      minio:    { condition: service_healthy }
+      nats:     { condition: service_healthy }
     environment:
       NODE_ENV: development
       PORT: 3000
@@ -105,10 +124,33 @@ services:
       OUTBOX_WORKER_ENABLED: "true"
       EMAIL_DRIVER: log
       EMAIL_FROM: noreply@example.com
+      # --- Phase 5 ---
+      NATS_ENABLED: "true"
+      NATS_URL: nats://nats:4222
+      NATS_STREAM: MESSAGING_EVENTS
+      WS_GATEWAY_DEDICATED: "true"   # ne pas émettre depuis l'API
     ports: ["3000:3000"]
     command: ["sh", "-c", "npm run migration:run && node dist/main.js"]
+
+  ws-gateway:
+    build: ./ws-gateway
+    depends_on:
+      redis: { condition: service_healthy }
+      nats:  { condition: service_healthy }
+    environment:
+      PORT: 3001
+      ALLOWED_ORIGINS: http://localhost:8080,http://localhost:5173
+      JWT_SECRET: dev_only_change_me_to_a_long_random_secret_min_32_chars
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      NATS_URL: nats://nats:4222
+      NATS_STREAM: MESSAGING_EVENTS
+      NATS_DURABLE: ws-gateway
+      LOG_LEVEL: info
+    ports: ["3001:3001"]
 
 volumes:
   pgdata:
   redisdata:
   miniodata:
+  natsdata:

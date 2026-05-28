@@ -27,3 +27,12 @@ variable "tracing_enabled" {
   type    = bool
   default = false
 }
+
+variable "enable_phase5" {
+  type    = bool
+  default = false
+}
+variable "ws_image_tag" {
+  type    = string
+  default = "latest"
+}

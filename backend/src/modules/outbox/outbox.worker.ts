@@ -1,4 +1,10 @@
-import { Injectable, Logger, Optional, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  Optional,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -7,7 +13,14 @@ import * as os from 'os';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PresenceService } from '../presence/presence.service';
 import { MetricsService } from '../observability/metrics.service';
+import { NatsService } from '../nats/nats.service';
 
+/**
+ * Outbox worker — Phase 5 :
+ *  - publie chaque event sur NATS JetStream (si activé) avec Msg-Id = outbox.id
+ *  - notifications email pour offline users (inchangé)
+ *  - garantie at-least-once (NATS dédup côté serveur via Msg-Id)
+ */
 @Injectable()
 export class OutboxWorker implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(OutboxWorker.name);
@@ -22,12 +35,12 @@ export class OutboxWorker implements OnModuleInit, OnModuleDestroy {
     private readonly notifications: NotificationsService,
     private readonly presence: PresenceService,
     @Optional() private readonly metrics?: MetricsService,
+    @Optional() private readonly nats?: NatsService,
   ) {}
 
   async onModuleInit() {
     if (this.cfg.get<boolean>('OUTBOX_WORKER_ENABLED', true)) {
       this.loop();
-      // Publish outbox lag every 30s
       this.lagTimer = setInterval(() => this.publishLagMetric().catch(() => {}), 30_000);
       this.logger.log(`Outbox worker started (id=${this.workerId})`);
     }
@@ -67,8 +80,8 @@ export class OutboxWorker implements OnModuleInit, OnModuleDestroy {
       );
       const lag = Number(rows?.[0]?.lag_seconds ?? 0);
       this.metrics?.gauge('OutboxLagSeconds', lag, 'Seconds');
-    } catch (e) {
-      // silencieux
+    } catch {
+      /* noop */
     }
   }
 
@@ -88,7 +101,7 @@ export class OutboxWorker implements OnModuleInit, OnModuleDestroy {
 
       for (const row of rows) {
         try {
-          await this.handle(row.event_type, row.payload);
+          await this.handle(row.id, row.event_type, row.payload);
           await m.query(
             `UPDATE message_events_outbox
                 SET processed_at = now(), last_error = NULL
@@ -116,15 +129,15 @@ export class OutboxWorker implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  private async handle(type: string, payload: any): Promise<void> {
-    switch (type) {
-      case 'message.created':
-        return this.onMessageCreated(payload);
-      case 'message.read':
-      case 'conversation.created':
-        return;
-      default:
-        this.logger.warn(`Unknown event_type=${type}`);
+  private async handle(outboxId: string, type: string, payload: any): Promise<void> {
+    // 1. Publication NATS (durable) — la source of truth temps-réel
+    if (this.nats?.isEnabled()) {
+      await this.nats.publish(type, payload, outboxId);
+      this.metrics?.count('NatsPublished', 1, { event_type: type });
+    }
+    // 2. Notifications email (best-effort, offline only)
+    if (type === 'message.created') {
+      await this.onMessageCreated(payload);
     }
   }
 

@@ -1,0 +1,26 @@
+{
+  "name": "messaging-ws-gateway",
+  "version": "0.5.0",
+  "description": "WebSocket gateway dédié (Socket.IO + NATS JetStream consumer)",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "start:dev": "ts-node-dev --respawn src/server.ts",
+    "test": "jest --passWithNoTests"
+  },
+  "dependencies": {
+    "@socket.io/redis-adapter": "^8.2.1",
+    "ioredis": "^5.3.2",
+    "jose": "^5.2.0",
+    "nats": "^2.19.0",
+    "pino": "^8.17.2",
+    "socket.io": "^4.7.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.6",
+    "jest": "^29.7.0",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.3.3"
+  }
+}

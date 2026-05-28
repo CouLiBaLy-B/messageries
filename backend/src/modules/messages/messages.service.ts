@@ -160,6 +160,8 @@ export class MessagesService {
             senderId: input.senderId,
             sequence: nextSeq,
             createdAt: msg.createdAt,
+            body: scan.cleaned,
+            moderationFlags: scan.flags.length ? scan.flags : null,
             recipients: participants.filter((p) => p.userId !== input.senderId).map((p) => p.userId),
           },
         }),

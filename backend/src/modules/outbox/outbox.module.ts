@@ -6,6 +6,7 @@ import { OutboxWorker } from './outbox.worker';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PresenceModule } from '../presence/presence.module';
 import { ObservabilityModule } from '../observability/observability.module';
+import { NatsModule } from '../nats/nats.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { ObservabilityModule } from '../observability/observability.module';
     NotificationsModule,
     PresenceModule,
     ObservabilityModule,
+    NatsModule,
   ],
   providers: [OutboxWorker],
   exports: [OutboxWorker],

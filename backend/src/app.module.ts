@@ -23,6 +23,7 @@ import { PresenceModule } from './modules/presence/presence.module';
 import { OutboxModule } from './modules/outbox/outbox.module';
 import { PrivacyModule } from './modules/privacy/privacy.module';
 import { ObservabilityModule } from './modules/observability/observability.module';
+import { NatsModule } from './modules/nats/nats.module';
 
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
 
@@ -39,6 +40,7 @@ import { RequestContextMiddleware } from './common/middleware/request-context.mi
       { name: 'medium', ttl: 60_000, limit: 100 },
     ]),
     ObservabilityModule,
+    NatsModule,
     AuthModule,
     UsersModule,
     OrdersModule,

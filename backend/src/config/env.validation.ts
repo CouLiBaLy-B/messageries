@@ -64,5 +64,18 @@ export const envValidationSchema = Joi.object({
   OTEL_EXPORTER_OTLP_ENDPOINT: Joi.string().uri().default('http://localhost:4318/v1/traces'),
   OTEL_SERVICE_NAME: Joi.string().default('messaging-api'),
   LOG_LEVEL: Joi.string().valid('trace', 'debug', 'info', 'warn', 'error', 'fatal').default('info'),
-  APP_VERSION: Joi.string().default('0.4.0'),
+  APP_VERSION: Joi.string().default('0.5.0'),
+  // --- Phase 5 : NATS JetStream ---
+  NATS_ENABLED: Joi.boolean().default(false),
+  NATS_URL: Joi.string().default('nats://localhost:4222'),
+  NATS_TOKEN: Joi.string().allow('').optional(),
+  NATS_USER: Joi.string().allow('').optional(),
+  NATS_PASSWORD: Joi.string().allow('').optional(),
+  NATS_TLS: Joi.boolean().default(false),
+  NATS_STREAM: Joi.string().default('MESSAGING_EVENTS'),
+  NATS_REPLICAS: Joi.number().default(1),
+  // --- Phase 5 : WS gateway dédié ---
+  WS_GATEWAY_DEDICATED: Joi.boolean().default(false),
+
+
 });
