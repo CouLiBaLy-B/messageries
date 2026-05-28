@@ -6,26 +6,34 @@ import { APP_GUARD } from '@nestjs/core';
 import { envValidationSchema } from './config/env.validation';
 import { typeOrmConfig } from './database/data-source';
 
+// --- Infrastructure (cross-cutting, importées tôt) ---
+import { ObservabilityModule } from './modules/observability/observability.module';
+import { NatsModule } from './modules/nats/nats.module';
+
+// --- Domain core ---
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { ConversationsModule } from './modules/conversations/conversations.module';
 import { MessagesModule } from './modules/messages/messages.module';
 import { AttachmentsModule } from './modules/attachments/attachments.module';
-import { RealtimeModule } from './modules/realtime/realtime.module';
-import { AuditModule } from './modules/audit/audit.module';
-import { HealthModule } from './modules/health/health.module';
 
+// --- Realtime ---
+import { RealtimeModule } from './modules/realtime/realtime.module';
+import { PresenceModule } from './modules/presence/presence.module';
+
+// --- Cross domain features ---
 import { CryptoModule } from './modules/crypto/crypto.module';
 import { ModerationModule } from './modules/moderation/moderation.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
-import { PresenceModule } from './modules/presence/presence.module';
-import { OutboxModule } from './modules/outbox/outbox.module';
-import { PrivacyModule } from './modules/privacy/privacy.module';
-import { ObservabilityModule } from './modules/observability/observability.module';
-import { NatsModule } from './modules/nats/nats.module';
 import { SearchModule } from './modules/search/search.module';
 import { E2eeModule } from './modules/e2ee/e2ee.module';
+import { OutboxModule } from './modules/outbox/outbox.module';
+import { PrivacyModule } from './modules/privacy/privacy.module';
+
+// --- Plateforme ---
+import { AuditModule } from './modules/audit/audit.module';
+import { HealthModule } from './modules/health/health.module';
 
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
 
@@ -41,25 +49,35 @@ import { RequestContextMiddleware } from './common/middleware/request-context.mi
       { name: 'short', ttl: 1000, limit: 5 },
       { name: 'medium', ttl: 60_000, limit: 100 },
     ]),
+
+    // Infra
     ObservabilityModule,
     NatsModule,
-    SearchModule,
-    E2eeModule,
+
+    // Domain
     AuthModule,
     UsersModule,
     OrdersModule,
     ConversationsModule,
     MessagesModule,
     AttachmentsModule,
+
+    // Realtime
+    PresenceModule,
     RealtimeModule,
-    AuditModule,
-    HealthModule,
+
+    // Features
     CryptoModule,
     ModerationModule,
-    PresenceModule,
     NotificationsModule,
+    SearchModule,
+    E2eeModule,
     OutboxModule,
     PrivacyModule,
+
+    // Platform
+    AuditModule,
+    HealthModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

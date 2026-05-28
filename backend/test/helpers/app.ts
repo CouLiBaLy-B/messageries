@@ -25,20 +25,24 @@ export async function buildApp(): Promise<{ app: INestApplication; ds: DataSourc
   await app.init();
 
   const ds = app.get(DataSource);
-  // applique les migrations sur la DB testcontainer
   await ds.runMigrations({ transaction: 'all' });
 
   return { app, ds };
 }
 
+/**
+ * TRUNCATE de toutes les tables non-système entre les tests.
+ *  - Découverte dynamique → robuste aux nouvelles migrations sans
+ *    devoir maintenir la liste à la main (régression évitée).
+ *  - Exclut les tables de gestion TypeORM (migrations).
+ */
 export async function resetDb(ds: DataSource) {
-  // TRUNCATE rapide entre tests (ordre RESTART IDENTITY CASCADE)
-  await ds.query(`
-    TRUNCATE TABLE
-      audit_log, message_events_outbox, email_notifications,
-      message_reports, message_receipts, attachments, messages,
-      conversation_participants, conversations, orders,
-      refresh_tokens, users
-    RESTART IDENTITY CASCADE
+  const rows: { tablename: string }[] = await ds.query(`
+    SELECT tablename FROM pg_tables
+     WHERE schemaname = 'public'
+       AND tablename NOT IN ('migrations', 'typeorm_metadata')
   `);
+  if (rows.length === 0) return;
+  const tables = rows.map((r) => `"${r.tablename}"`).join(', ');
+  await ds.query(`TRUNCATE TABLE ${tables} RESTART IDENTITY CASCADE`);
 }

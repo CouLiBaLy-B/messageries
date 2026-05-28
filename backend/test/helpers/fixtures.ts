@@ -1,6 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import * as request from 'supertest';
+import request from 'supertest';
 import * as argon2 from 'argon2';
 import { User, UserRole } from '../../src/modules/users/entities/user.entity';
 import { Order } from '../../src/modules/orders/entities/order.entity';

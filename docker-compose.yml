@@ -119,6 +119,8 @@ services:
       S3_FORCE_PATH_STYLE: "true"
       ENCRYPT_MESSAGE_BODY: "true"
       KMS_DRIVER: local
+      # ⚠️ DEV ONLY — clé fixe pour reproductibilité des tests locaux uniquement.
+      # En prod, KMS_DRIVER=aws + AWS_KMS_KEY_ARN (cf. Terraform module kms/).
       KMS_LOCAL_KEYS: "dev-key-1:8b3J5p3xCq8mE+rNc7sV1WqA9oZqL6f0YtVjK2dGq5w="
       KMS_LOCAL_ACTIVE: dev-key-1
       OUTBOX_WORKER_ENABLED: "true"

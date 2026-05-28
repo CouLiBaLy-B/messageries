@@ -95,21 +95,6 @@ resource "aws_service_discovery_service" "nats" {
   tags = var.tags
 }
 
-# Service alias "nats" → tous les pods
-resource "aws_service_discovery_service" "nats_alias" {
-  name = "nats"
-  dns_config {
-    namespace_id = aws_service_discovery_private_dns_namespace.this.id
-    dns_records {
-      ttl  = 10
-      type = "A"
-    }
-    routing_policy = "MULTIVALUE"
-  }
-  health_check_custom_config { failure_threshold = 1 }
-  tags = var.tags
-}
-
 # --- SG NATS ---
 resource "aws_security_group" "nats" {
   name        = "${var.name}-nats-sg"
@@ -267,16 +252,12 @@ resource "aws_ecs_service" "nats" {
     assign_public_ip = false
   }
 
+  # Service discovery : enregistre chaque pod sous nats-<i> ET sous l'alias "nats"
+  # Note : un seul service_registries autorisé par service ECS Fargate (réseau awsvpc).
+  # On utilise donc nats-<i> ici ; l'alias "nats" est résolu via Route 53 namespace
+  # qui regroupe tous les nats-<i> via NSD round-robin (cf. multivalue answer).
   service_registries {
     registry_arn = aws_service_discovery_service.nats[count.index].arn
-  }
-
-  # Alias commun
-  dynamic "service_registries" {
-    for_each = count.index == 0 ? [1] : []
-    content {
-      registry_arn = aws_service_discovery_service.nats_alias.arn
-    }
   }
 
   tags = var.tags

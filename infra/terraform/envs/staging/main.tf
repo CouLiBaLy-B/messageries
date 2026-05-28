@@ -184,7 +184,7 @@ module "ecs" {
     METRICS_ENABLED        = "true"
     AWS_REGION             = var.region
     NATS_ENABLED           = var.enable_phase5 ? "true" : "false"
-    NATS_URL               = var.enable_phase5 ? "nats://nats.${local.name}.internal:4222" : ""
+    NATS_URL               = var.enable_phase5 ? module.nats[0].url : ""
     NATS_STREAM            = "MESSAGING_EVENTS"
     WS_GATEWAY_DEDICATED   = var.enable_phase5 ? "true" : "false"
   }

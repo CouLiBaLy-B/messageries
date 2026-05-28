@@ -4,7 +4,7 @@
  */
 import { INestApplication } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import * as request from 'supertest';
+import request from 'supertest';
 import { GenericContainer, StartedTestContainer, Wait } from 'testcontainers';
 import { startInfra, E2eInfra } from '../helpers/containers';
 import { buildApp, resetDb } from '../helpers/app';

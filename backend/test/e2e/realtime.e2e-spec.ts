@@ -1,6 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import * as request from 'supertest';
+import request from 'supertest';
 import { io as ioc, Socket } from 'socket.io-client';
 import { RedisIoAdapter } from '../../src/modules/realtime/redis-io.adapter';
 import { startInfra, E2eInfra } from '../helpers/containers';

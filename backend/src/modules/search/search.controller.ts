@@ -44,7 +44,7 @@ export class SearchController {
 
   @Get('search')
   @Throttle({ medium: { ttl: 60_000, limit: 30 } })
-  async search(@Query() q: SearchQueryDto, @CurrentUser() user: AuthUser) {
+  async query(@Query() q: SearchQueryDto, @CurrentUser() user: AuthUser) {
     return this.search.search({
       userId: user.sub,
       query: q.q,

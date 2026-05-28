@@ -1,4 +1,4 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RealtimeGateway } from './realtime.gateway';
 import { Message } from '../messages/entities/message.entity';
@@ -15,14 +15,14 @@ export class RealtimeService {
   private readonly dedicated: boolean;
 
   constructor(
-    @Optional() private readonly gateway: RealtimeGateway | null,
+    private readonly gateway: RealtimeGateway,
     cfg: ConfigService,
   ) {
     this.dedicated = cfg.get<boolean>('WS_GATEWAY_DEDICATED', false);
   }
 
   async publishMessageCreated(message: Message & { body?: string }) {
-    if (this.dedicated || !this.gateway?.server) return;
+    if (this.dedicated || !this.gateway.server) return;
     try {
       this.gateway.server.to(roomForConversation(message.conversationId)).emit('message.created', {
         id: message.id,
@@ -38,7 +38,7 @@ export class RealtimeService {
   }
 
   async publishMessageDeleted(message: Message) {
-    if (this.dedicated || !this.gateway?.server) return;
+    if (this.dedicated || !this.gateway.server) return;
     this.gateway.server.to(roomForConversation(message.conversationId)).emit('message.deleted', {
       id: message.id,
       conversationId: message.conversationId,
@@ -47,7 +47,7 @@ export class RealtimeService {
   }
 
   async publishReadReceipt(payload: { conversationId: string; userId: string; uptoSequence: string }) {
-    if (this.dedicated || !this.gateway?.server) return;
+    if (this.dedicated || !this.gateway.server) return;
     this.gateway.server.to(roomForConversation(payload.conversationId)).emit('message.read', payload);
   }
 }
