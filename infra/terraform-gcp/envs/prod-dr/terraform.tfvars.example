@@ -1,0 +1,29 @@
+project_id            = "messaging-prod-prj"
+dr_region             = "europe-west4"
+env                   = "prod"
+
+# === Récupérés depuis envs/dr/outputs ===
+dr_vpc_self_link        = "https://www.googleapis.com/compute/v1/projects/messaging-prod-prj/global/networks/messaging-prod-dr-vpc"
+dr_vpc_connector_id     = "projects/messaging-prod-prj/locations/europe-west4/connectors/messaging-prod-dr-vpc-c"
+dr_cloudsql_private_ip  = "10.40.0.3"
+dr_gcs_bucket_name      = "messaging-prod-attachments-abcd1234-dr"
+dr_app_kms_key_id       = "projects/messaging-prod-prj/locations/europe-west4/keyRings/messaging-prod-dr-kr/cryptoKeys/messaging-prod-dr-app"
+
+# === Domain & app ===
+domain_api      = "api.example.com"
+allowed_origins = ["https://app.example.com"]
+alert_emails    = ["ops@example.com"]
+
+# === Images ===
+github_repo   = "CouLiBaLy-B/messageries"
+api_image_uri = "europe-west4-docker.pkg.dev/messaging-prod-prj/messaging-prod-dr-docker/api:latest"
+
+# === Mode passif (scale-to-zero) ===
+min_instances = 0
+max_instances = 30
+
+# === Secrets (mode recommandé prod : recréer en DR avec MÊMES valeurs que primary) ===
+# La DB DR utilise le même password que primary (réplication Cloud SQL).
+# Le JWT_SECRET doit être identique pour que les sessions actives ne soient pas invalidées au failover.
+use_existing_secrets       = false
+primary_db_password_value  = "REPLACE_WITH_VALUE_FROM_PRIMARY_SECRET_MANAGER"

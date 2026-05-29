@@ -1,0 +1,71 @@
+name: Deploy GCP Prod-DR (passive)
+
+# Déploie l'image vers le registry DR et update le service Cloud Run DR.
+# Service reste en min_instances=0 par défaut (cf. terraform.tfvars).
+#
+# Trigger : push sur main + path backend/** OU manuellement.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'ws-gateway/**'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  GCP_REGION_DR: europe-west4
+  SERVICE_DR: messaging-prod-dr-api
+
+jobs:
+  build-and-deploy-dr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER_PROD_DR }}
+          service_account: ${{ secrets.GCP_DEPLOY_SA_PROD_DR }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure docker
+        run: gcloud auth configure-docker ${{ env.GCP_REGION_DR }}-docker.pkg.dev --quiet
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build & push image (DR registry)
+        id: build
+        run: |
+          REPO=${{ env.GCP_REGION_DR }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/messaging-prod-dr-docker
+          IMAGE=$REPO/api:${{ github.sha }}
+          docker buildx build --platform linux/amd64 --provenance false \
+            -t "$IMAGE" \
+            -t "$REPO/api:latest" \
+            --push ./backend
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
+
+      - name: Deploy to Cloud Run DR (passive, no migration)
+        # Pas de migration en DR : la DB est répliquée depuis primary.
+        # On garde min_instances inchangé via --no-traffic pour révision sans bascule.
+        run: |
+          gcloud run deploy ${{ env.SERVICE_DR }} \
+            --image ${{ steps.build.outputs.image }} \
+            --region ${{ env.GCP_REGION_DR }} \
+            --no-traffic \
+            --quiet
+
+      - name: Promote new revision to 100%
+        # En passif (min=0), 0 risque de bascule trafic à chaud.
+        # On promeut quand même pour que la prochaine activation utilise la new revision.
+        run: |
+          gcloud run services update-traffic ${{ env.SERVICE_DR }} \
+            --region ${{ env.GCP_REGION_DR }} \
+            --to-latest \
+            --quiet
