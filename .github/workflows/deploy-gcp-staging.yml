@@ -1,17 +1,12 @@
 name: Deploy GCP Staging
 
+# Manual only — secrets requis :
+# GCP_WIF_PROVIDER_STAGING, GCP_DEPLOY_SA_STAGING, GCP_PROJECT_ID
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'backend/**'
-      - 'ws-gateway/**'
-      - 'infra/terraform-gcp/**'
-      - '.github/workflows/deploy-gcp-staging.yml'
   workflow_dispatch:
 
 permissions:
-  id-token: write   # OIDC vers GCP
+  id-token: write
   contents: read
 
 env:
@@ -19,24 +14,37 @@ env:
   SERVICE: messaging-staging-api
 
 jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - id: check
+        run: |
+          if [ -z "${{ secrets.GCP_WIF_PROVIDER_STAGING }}" ] \
+            || [ -z "${{ secrets.GCP_DEPLOY_SA_STAGING }}" ] \
+            || [ -z "${{ secrets.GCP_PROJECT_ID }}" ]; then
+            echo "::warning::GCP secrets not all set — skipping deploy"
+            echo "ready=false" >> $GITHUB_OUTPUT
+          else
+            echo "ready=true" >> $GITHUB_OUTPUT
+          fi
+
   build-and-deploy:
+    needs: preflight
+    if: needs.preflight.outputs.ready == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - id: auth
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER_STAGING }}
           service_account: ${{ secrets.GCP_DEPLOY_SA_STAGING }}
-
       - uses: google-github-actions/setup-gcloud@v2
-
       - name: Configure docker
         run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
-
       - uses: docker/setup-buildx-action@v3
-
       - name: Build & push image
         id: build
         run: |
@@ -47,10 +55,8 @@ jobs:
             -t "$REPO/api:latest" \
             --push ./backend
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
-
       - name: Run migrations (Cloud Run Job)
         run: ./infra/terraform-gcp/scripts/run-migrations.sh staging
-
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy ${{ env.SERVICE }} \

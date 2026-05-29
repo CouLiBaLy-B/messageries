@@ -1,16 +1,7 @@
 name: Deploy GCP Prod-DR (passive)
 
-# Déploie l'image vers le registry DR et update le service Cloud Run DR.
-# Service reste en min_instances=0 par défaut (cf. terraform.tfvars).
-#
-# Trigger : push sur main + path backend/** OU manuellement.
-
+# Manual only. Build l'image et update le service Cloud Run DR sans bouger le trafic.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'backend/**'
-      - 'ws-gateway/**'
   workflow_dispatch:
 
 permissions:
@@ -22,24 +13,37 @@ env:
   SERVICE_DR: messaging-prod-dr-api
 
 jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - id: check
+        run: |
+          if [ -z "${{ secrets.GCP_WIF_PROVIDER_PROD_DR }}" ] \
+            || [ -z "${{ secrets.GCP_DEPLOY_SA_PROD_DR }}" ] \
+            || [ -z "${{ secrets.GCP_PROJECT_ID }}" ]; then
+            echo "::warning::GCP DR secrets not all set — skipping deploy"
+            echo "ready=false" >> $GITHUB_OUTPUT
+          else
+            echo "ready=true" >> $GITHUB_OUTPUT
+          fi
+
   build-and-deploy-dr:
+    needs: preflight
+    if: needs.preflight.outputs.ready == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - id: auth
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER_PROD_DR }}
           service_account: ${{ secrets.GCP_DEPLOY_SA_PROD_DR }}
-
       - uses: google-github-actions/setup-gcloud@v2
-
       - name: Configure docker
         run: gcloud auth configure-docker ${{ env.GCP_REGION_DR }}-docker.pkg.dev --quiet
-
       - uses: docker/setup-buildx-action@v3
-
       - name: Build & push image (DR registry)
         id: build
         run: |
@@ -50,20 +54,14 @@ jobs:
             -t "$REPO/api:latest" \
             --push ./backend
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
-
       - name: Deploy to Cloud Run DR (passive, no migration)
-        # Pas de migration en DR : la DB est répliquée depuis primary.
-        # On garde min_instances inchangé via --no-traffic pour révision sans bascule.
         run: |
           gcloud run deploy ${{ env.SERVICE_DR }} \
             --image ${{ steps.build.outputs.image }} \
             --region ${{ env.GCP_REGION_DR }} \
             --no-traffic \
             --quiet
-
       - name: Promote new revision to 100%
-        # En passif (min=0), 0 risque de bascule trafic à chaud.
-        # On promeut quand même pour que la prochaine activation utilise la new revision.
         run: |
           gcloud run services update-traffic ${{ env.SERVICE_DR }} \
             --region ${{ env.GCP_REGION_DR }} \
