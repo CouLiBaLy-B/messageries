@@ -1,7 +1,7 @@
 {
   "name": "ecommerce-messaging-backend",
   "version": "0.8.0",
-  "description": "Messagerie sécurisée e-commerce (1 conversation = 1 commande)",
+  "description": "Messagerie s\u00e9curis\u00e9e e-commerce (1 conversation = 1 commande)",
   "main": "dist/main.js",
   "scripts": {
     "build": "nest build",
@@ -19,7 +19,9 @@
     "migration:run": "npm run typeorm -- migration:run",
     "migration:revert": "npm run typeorm -- migration:revert",
     "seed": "ts-node src/database/seed.ts",
-    "lint:fix": "eslint \"src/**/*.ts\" --fix"
+    "lint:fix": "eslint \"src/**/*.ts\" --fix",
+    "test:e2e:slow": "jest --config ./test/jest-e2e-slow.json --runInBand",
+    "test:e2e:all": "jest --config ./test/jest-e2e.json --runInBand && jest --config ./test/jest-e2e-slow.json --runInBand"
   },
   "dependencies": {
     "@aws-sdk/client-cloudwatch": "^3.490.0",
