@@ -1,0 +1,13 @@
+project_id                       = "messaging-prod-prj"
+primary_region                   = "europe-west1"
+dr_region                        = "europe-west4"
+env                              = "prod"
+primary_cloudsql_connection_name = "messaging-prod-prj:europe-west1:messaging-prod-pg"
+primary_gcs_bucket_name          = "messaging-prod-attachments-abcd1234"
+primary_lb_ip                    = "34.111.222.333"
+dr_lb_ip                         = "34.444.555.666"
+dns_managed_zone_name            = "example-com"
+domain_api                       = "api.example.com"
+notification_channels            = [
+  "projects/messaging-prod-prj/notificationChannels/12345678901234567890",
+]

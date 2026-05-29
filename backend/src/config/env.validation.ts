@@ -60,6 +60,9 @@ export const envValidationSchema = Joi.object({
   // --- GCP support (cohabite avec AWS) ---
   STORAGE_DRIVER: Joi.string().valid('s3', 'gcs').default('s3'),
   GCS_BUCKET: Joi.string().optional(),
+  GCS_ENDPOINT: Joi.string().uri().optional(),
+  GCS_SIGNED_URL_BYPASS: Joi.boolean().default(false),
+
   GCP_PROJECT_ID: Joi.string().optional(),
   GCP_KMS_KEY_NAME: Joi.string().optional(),
   METRICS_DRIVER: Joi.string().valid('cloudwatch', 'gcp').default('cloudwatch'),

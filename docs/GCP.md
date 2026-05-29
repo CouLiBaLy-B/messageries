@@ -142,6 +142,11 @@ STORAGE_DRIVER=gcs GCS_BUCKET=test ... npm run test:e2e
 
 (Implémenter un test e2e dédié laissé pour PR suivante.)
 
+
+## 🌍 Disaster Recovery multi-région
+
+Voir [`docs/GCP-DR.md`](GCP-DR.md) pour la procédure DR cross-region (Cloud SQL replica + GCS replication + Cloud DNS failover).
+
 ## 🚧 Limitations connues
 
 - Module `nats/` provisionne le cluster GKE ; le déploiement Helm de NATS reste manuel (cf. `modules/nats/install.md`)

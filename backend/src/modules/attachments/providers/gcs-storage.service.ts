@@ -3,13 +3,21 @@ import { ConfigService } from '@nestjs/config';
 import { ObjectHead, ObjectStorageService } from './object-storage.interface';
 
 /**
- * Implémentation Google Cloud Storage.
- * Lazy import de @google-cloud/storage pour ne pas imposer la dep en dev/test S3.
+ * Google Cloud Storage adapter.
+ * Lazy import @google-cloud/storage pour ne pas imposer la dep en dev S3.
+ *
+ * Test mode :
+ *  - GCS_ENDPOINT (ex: http://fake-gcs:4443) bascule sur fake-gcs-server
+ *  - GCS_SIGNED_URL_BYPASS=true génère des URLs directes non-signées
+ *    (fake-gcs n'a pas de service account key valide pour signer)
  */
 @Injectable()
 export class GcsStorageService implements ObjectStorageService {
   private readonly logger = new Logger(GcsStorageService.name);
   private readonly bucketName: string;
+  private readonly endpoint?: string;
+  private readonly projectId?: string;
+  private readonly bypassSign: boolean;
   private storage: any;
   private bucket: any;
 
@@ -18,6 +26,9 @@ export class GcsStorageService implements ObjectStorageService {
     if (!this.bucketName) {
       throw new Error('GCS_BUCKET required when STORAGE_DRIVER=gcs');
     }
+    this.endpoint = cfg.get<string>('GCS_ENDPOINT') || undefined;
+    this.projectId = cfg.get<string>('GCP_PROJECT_ID') || undefined;
+    this.bypassSign = cfg.get<boolean>('GCS_SIGNED_URL_BYPASS', false);
   }
 
   private async client() {
@@ -25,9 +36,10 @@ export class GcsStorageService implements ObjectStorageService {
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { Storage } = await import('@google-cloud/storage');
-      // En prod (Cloud Run) : ADC via service account du runtime.
-      // En local : GOOGLE_APPLICATION_CREDENTIALS doit pointer un keyfile.
-      this.storage = new Storage();
+      this.storage = new Storage({
+        ...(this.endpoint ? { apiEndpoint: this.endpoint } : {}),
+        ...(this.projectId ? { projectId: this.projectId } : {}),
+      });
       this.bucket = this.storage.bucket(this.bucketName);
       return this.bucket;
     } catch (e) {
@@ -37,7 +49,19 @@ export class GcsStorageService implements ObjectStorageService {
     }
   }
 
+  /** URL directe vers fake-gcs-server pour tests (non-signée, pas de TTL réelle). */
+  private bypassedUrl(key: string, query: string = ''): string {
+    return `${this.endpoint}/upload/storage/v1/b/${this.bucketName}/o?uploadType=media&name=${encodeURIComponent(key)}${query}`;
+  }
+
+  private bypassedGetUrl(key: string): string {
+    return `${this.endpoint}/storage/v1/b/${this.bucketName}/o/${encodeURIComponent(key)}?alt=media`;
+  }
+
   async presignPut(key: string, mimeType: string, maxBytes: number, ttlSec = 300) {
+    if (this.bypassSign && this.endpoint) {
+      return this.bypassedUrl(key);
+    }
     const bucket = await this.client();
     const [url] = await bucket.file(key).getSignedUrl({
       version: 'v4',
@@ -45,7 +69,6 @@ export class GcsStorageService implements ObjectStorageService {
       expires: Date.now() + ttlSec * 1000,
       contentType: mimeType,
       extensionHeaders: {
-        // GCS recommande d'imposer le content-length au moment de l'upload
         'x-goog-content-length-range': `0,${maxBytes}`,
       },
     });
@@ -53,6 +76,9 @@ export class GcsStorageService implements ObjectStorageService {
   }
 
   async presignGet(key: string, ttlSec = 60, downloadFilename?: string) {
+    if (this.bypassSign && this.endpoint) {
+      return this.bypassedGetUrl(key);
+    }
     const bucket = await this.client();
     const [url] = await bucket.file(key).getSignedUrl({
       version: 'v4',
