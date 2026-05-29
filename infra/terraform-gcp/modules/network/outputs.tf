@@ -1,0 +1,9 @@
+output "vpc_id"            { value = google_compute_network.this.id }
+output "vpc_name"          { value = google_compute_network.this.name }
+output "vpc_self_link"     { value = google_compute_network.this.self_link }
+output "subnet_id"         { value = google_compute_subnetwork.app.id }
+output "subnet_name"       { value = google_compute_subnetwork.app.name }
+output "subnet_self_link"  { value = google_compute_subnetwork.app.self_link }
+output "vpc_connector_id"  { value = google_vpc_access_connector.this.id }
+output "vpc_connector_name" { value = google_vpc_access_connector.this.name }
+output "psa_connection"    { value = google_service_networking_connection.psa.network }

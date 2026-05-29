@@ -1,7 +1,7 @@
 {
   "name": "ecommerce-messaging-backend",
-  "version": "0.8.0",
-  "description": "Messagerie sécurisée e-commerce (1 conversation = 1 commande)",
+  "version": "0.9.0",
+  "description": "Messagerie s\u00e9curis\u00e9e e-commerce (1 conversation = 1 commande)",
   "main": "dist/main.js",
   "scripts": {
     "build": "nest build",
@@ -96,5 +96,10 @@
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.3.3"
+  },
+  "optionalDependencies": {
+    "@google-cloud/storage": "^7.13.0",
+    "@google-cloud/kms": "^4.4.0",
+    "@google-cloud/monitoring": "^4.1.0"
   }
 }

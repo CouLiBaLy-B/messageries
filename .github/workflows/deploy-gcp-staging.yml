@@ -1,0 +1,59 @@
+name: Deploy GCP Staging
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'ws-gateway/**'
+      - 'infra/terraform-gcp/**'
+      - '.github/workflows/deploy-gcp-staging.yml'
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # OIDC vers GCP
+  contents: read
+
+env:
+  GCP_REGION: europe-west1
+  SERVICE: messaging-staging-api
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER_STAGING }}
+          service_account: ${{ secrets.GCP_DEPLOY_SA_STAGING }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure docker
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build & push image
+        id: build
+        run: |
+          REPO=${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/messaging-staging-docker
+          IMAGE=$REPO/api:${{ github.sha }}
+          docker buildx build --platform linux/amd64 --provenance false \
+            -t "$IMAGE" \
+            -t "$REPO/api:latest" \
+            --push ./backend
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
+
+      - name: Run migrations (Cloud Run Job)
+        run: ./infra/terraform-gcp/scripts/run-migrations.sh staging
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE }} \
+            --image ${{ steps.build.outputs.image }} \
+            --region ${{ env.GCP_REGION }} \
+            --quiet

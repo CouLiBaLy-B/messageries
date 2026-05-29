@@ -9,7 +9,8 @@ import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuid } from 'uuid';
 import { Attachment } from './entities/attachment.entity';
-import { S3Service } from './s3.service';
+import { Inject } from '@nestjs/common';
+import { OBJECT_STORAGE, ObjectStorageService } from './providers/object-storage.interface';
 import { ConversationsService } from '../conversations/conversations.service';
 
 const ALLOWED_MIME = new Set([
@@ -24,7 +25,7 @@ const ALLOWED_MIME = new Set([
 export class AttachmentsService {
   constructor(
     @InjectRepository(Attachment) private readonly repo: Repository<Attachment>,
-    private readonly s3: S3Service,
+    @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorageService,
     private readonly conversations: ConversationsService,
     private readonly cfg: ConfigService,
   ) {}
@@ -53,7 +54,7 @@ export class AttachmentsService {
 
     const objectKey = `conv/${input.conversationId}/${uuid()}-${sanitizeFilename(input.filename)}`;
 
-    const uploadUrl = await this.s3.presignPut(
+    const uploadUrl = await this.storage.presignPut(
       objectKey,
       input.mimeType,
       input.sizeBytes,
@@ -88,11 +89,11 @@ export class AttachmentsService {
     if (att.uploaderId !== userId) throw new ForbiddenException();
 
     try {
-      const head = await this.s3.head(att.objectKey);
-      const realSize = Number(head.ContentLength ?? 0);
+      const head = await this.storage.head(att.objectKey);
+      const realSize = head.contentLength ?? 0;
       const declared = Number(att.sizeBytes);
       if (Math.abs(realSize - declared) > 1024) {
-        await this.s3.delete(att.objectKey);
+        await this.storage.delete(att.objectKey);
         await this.repo.remove(att);
         throw new BadRequestException('Taille déclarée incohérente');
       }
@@ -120,7 +121,7 @@ export class AttachmentsService {
       input.userRole,
       att.conversationId,
     );
-    const url = await this.s3.presignGet(att.objectKey, 60, att.originalFilename);
+    const url = await this.storage.presignGet(att.objectKey, 60, att.originalFilename);
     return { url, expiresIn: 60 };
   }
 }

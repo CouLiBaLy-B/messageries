@@ -24,9 +24,9 @@ export const envValidationSchema = Joi.object({
   JWT_ACCESS_TTL: Joi.number().default(900),
   JWT_REFRESH_TTL: Joi.number().default(2592000),
 
-  S3_ENDPOINT: Joi.string().uri().required(),
+  S3_ENDPOINT: Joi.string().uri().optional(),
   S3_REGION: Joi.string().default('us-east-1'),
-  S3_BUCKET: Joi.string().required(),
+  S3_BUCKET: Joi.string().optional(),
   S3_ACCESS_KEY: Joi.string().optional(),
   S3_SECRET_KEY: Joi.string().optional(),
   S3_FORCE_PATH_STYLE: Joi.boolean().default(true),
@@ -44,7 +44,7 @@ export const envValidationSchema = Joi.object({
   CLAMAV_PORT: Joi.number().optional(),
 
   ENCRYPT_MESSAGE_BODY: Joi.boolean().default(true),
-  KMS_DRIVER: Joi.string().valid('local', 'aws').default('local'),
+  KMS_DRIVER: Joi.string().valid('local', 'aws', 'gcp').default('local'),
   KMS_LOCAL_KEYS: Joi.string().optional(),
   KMS_LOCAL_ACTIVE: Joi.string().optional(),
   AWS_KMS_KEY_ARN: Joi.string().optional(),
@@ -57,6 +57,13 @@ export const envValidationSchema = Joi.object({
 
   METRICS_ENABLED: Joi.boolean().default(false),
   METRICS_NAMESPACE: Joi.string().default('Messaging'),
+  // --- GCP support (cohabite avec AWS) ---
+  STORAGE_DRIVER: Joi.string().valid('s3', 'gcs').default('s3'),
+  GCS_BUCKET: Joi.string().optional(),
+  GCP_PROJECT_ID: Joi.string().optional(),
+  GCP_KMS_KEY_NAME: Joi.string().optional(),
+  METRICS_DRIVER: Joi.string().valid('cloudwatch', 'gcp').default('cloudwatch'),
+
   AWS_REGION: Joi.string().default('eu-west-3'),
 
   // --- Phase 4 : tracing & logs ---

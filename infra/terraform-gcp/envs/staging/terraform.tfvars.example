@@ -1,0 +1,12 @@
+project_id      = "messaging-staging-prj"
+region          = "europe-west1"
+env             = "staging"
+domain_api      = "staging.api.example.com"
+domain_ws       = "staging.ws.example.com"
+allowed_origins = ["https://staging.app.example.com"]
+alert_emails    = ["devops@example.com"]
+github_repo     = "CouLiBaLy-B/messageries"
+api_image_uri   = "europe-west1-docker.pkg.dev/messaging-staging-prj/messaging-staging-docker/api:latest"
+ws_image_uri    = "europe-west1-docker.pkg.dev/messaging-staging-prj/messaging-staging-docker/ws:latest"
+enable_ws_gateway = false
+enable_nats       = false
