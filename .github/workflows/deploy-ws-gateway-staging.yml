@@ -1,11 +1,7 @@
-name: Deploy WS Gateway Staging
+name: Deploy WS Gateway Staging (AWS)
 
+# Manual only — see deploy-staging.yml rationale.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'ws-gateway/**'
-      - '.github/workflows/deploy-ws-gateway-staging.yml'
   workflow_dispatch:
 
 permissions:
@@ -17,7 +13,23 @@ env:
   ECR_REPO: messaging-staging-ws
 
 jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - id: check
+        run: |
+          if [ -z "${{ secrets.AWS_DEPLOY_ROLE_ARN_STAGING }}" ]; then
+            echo "::warning::AWS_DEPLOY_ROLE_ARN_STAGING secret not set — skipping deploy"
+            echo "ready=false" >> $GITHUB_OUTPUT
+          else
+            echo "ready=true" >> $GITHUB_OUTPUT
+          fi
+
   build-and-deploy:
+    needs: preflight
+    if: needs.preflight.outputs.ready == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

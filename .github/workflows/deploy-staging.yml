@@ -1,16 +1,15 @@
-name: Deploy Staging
+name: Deploy Staging (AWS)
+
+# Déclenchement MANUEL uniquement (workflow_dispatch).
+# Les pushs sur main ne déclenchent plus ce workflow tant que les secrets
+# AWS_DEPLOY_ROLE_ARN_STAGING / AWS infra n'ont pas été provisionnés.
+# Pour réactiver le trigger automatique : ajouter `push:` ci-dessous.
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'backend/**'
-      - 'infra/terraform/**'
-      - '.github/workflows/deploy-staging.yml'
   workflow_dispatch:
 
 permissions:
-  id-token: write   # OIDC vers AWS
+  id-token: write
   contents: read
 
 env:
@@ -19,7 +18,23 @@ env:
   ECR_REPO: messaging-staging
 
 jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - id: check
+        run: |
+          if [ -z "${{ secrets.AWS_DEPLOY_ROLE_ARN_STAGING }}" ]; then
+            echo "::warning::AWS_DEPLOY_ROLE_ARN_STAGING secret not set — skipping deploy"
+            echo "ready=false" >> $GITHUB_OUTPUT
+          else
+            echo "ready=true" >> $GITHUB_OUTPUT
+          fi
+
   build-and-deploy:
+    needs: preflight
+    if: needs.preflight.outputs.ready == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
